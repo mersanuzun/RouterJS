@@ -4,8 +4,6 @@
 (function() {
   "use strict";
 
-  var controllers = {};
-
   function hash() {
     var alphabet = "abcdefghijklmnoprstuvwxyz0123456789";
     var tbHash = "";
@@ -37,10 +35,6 @@
   function Router(config) {
     var routerView = document.querySelector("[data-router-view]");
     var routes = {};
-
-    function controller(name, callback) {
-      controllers[name] = callback;
-    }
 
     function extractRouteTriggers() {
       // todo : searchAndExtract new routes when state changes
@@ -75,22 +69,22 @@
     }
 
     function state(name, options) {
+      /*
+       options: {
+       url: "/home",
+       controller: <function_reference>,
+       template: "../a.html",
+       abstract: true | false,
+       before: {
+       k1: function() { sync -- return 1; },
+       k2: function() { async -- return Promise; }
+       },
+       previousState: // todo : implement after research the history object
+       }
+       */
+
       var id = hash();
       pushRoute(id, name, options);
-      /*
-        name: home
-        options: {
-          url: "/home",
-          controller: <function_reference>,
-          template: "../a.html",
-          abstract: true | false,
-          before: {
-            k1: function() { sync -- return 1; },
-            k2: function() { async -- return Promise; }
-          }
-        },
-        previousState: // todo implement after research the history object
-       */
 
       return {
         go: function() {
@@ -98,8 +92,16 @@
         },
         reload: function() {
           // todo : implement
+        },
+        params: function() {
+          return 0; // todo : implement
         }
       };
+    }
+
+    function attachController(state) {
+      // todo : bind elements and instructions, object watchers etc
+      state.controller.apply(state.controller, [state.before()]);
     }
 
     function otherwise() {
@@ -124,13 +126,12 @@
         .then(function(template) {
           window.location.hash = "#" + state.url;
           routerView.innerHTML = template;
+          attachController(state);
         });
     }
 
     function init() {
       console.log(routes);
-      console.debug(controllers);
-
       extractRouteTriggers();
 
       var openingUrl = parseOnloadUrl();
@@ -142,7 +143,6 @@
 
     return {
       state: state,
-      controller: controller,
       init: init
     };
   }
