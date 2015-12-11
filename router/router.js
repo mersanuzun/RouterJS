@@ -81,6 +81,7 @@
       return tbState;
     }
 
+    // todo : add router.controller & router.mainController(callback) fn
     // todo : add state parameters
     // todo : add child states / abstract state values
     // todo : remove event listeners, after controller destroyed bindings and etc || generate events
@@ -100,15 +101,11 @@
       initState(event.detail);
     });
 
-    function pushRoute(id, name, options) {
+    function state(name, options) {
       if ($$routes[name]) {
         new Error("State", name, "is already in your route list");
       }
-      $$routes[name] = Object.assign({id: id}, options);
-    }
-
-    function state(name, options) {
-      pushRoute(uuid(), name, options);
+      $$routes[name] = Object.assign({id: uuid(), name: name}, options);
       return this;
     }
 
@@ -121,6 +118,9 @@
     function initState(state) {
       fetchTemplate(state)
         .then(function(template) {
+          if (!state.resolve) {
+            return;
+          }
           var promises = Object.keys(state.resolve).map(function(tbResolved) {
             return new Promise(function(resolve, reject) {
               resolve(state.resolve[tbResolved].apply(null, []));

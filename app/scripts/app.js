@@ -62,6 +62,28 @@
         }
       }
     })
+    .state("users", {
+      title: "Users",
+      url: "/users",
+      templateUrl: "../../controllers/users/users.html",
+      controller: UsersController,
+      resolve: {
+        users: function() {
+          return [
+            {user1: {name: "John", surname: "Doe", age: 25}},
+            {user2: {name: "Sally", surname: "Sure", age: 18}},
+            {user3: {name: "Matt", surname: "Damon", age: 35}}
+          ]
+        }
+      }
+    })
+    .state("user", {
+      title: "User",
+      parent: "users",
+      url: "/:userName",
+      templateUrl: "../../controllers/users/user.html",
+      controller: UserController
+    })
     .otherwise("home");
 
   router.$init();
@@ -82,4 +104,14 @@
     console.log("Contact controller initiated...");
     console.log("value of resolve :", a, b);
   }
+
+  function UsersController(users) {
+    console.log("User controller initiated");
+    console.log("users array", users);
+  }
+
+  function UserController() {
+    console.log("User controller initiated...");
+  }
+
 })();
