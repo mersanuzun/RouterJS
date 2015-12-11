@@ -46,6 +46,7 @@
 
   var $$routerView = document.querySelector("[data-router-view]");
   var $$routes = {};
+  var $$controllers = {};
   var $$active;
   var $$otherwise;
 
@@ -81,7 +82,7 @@
       return tbState;
     }
 
-    // todo : add router.controller & router.mainController(callback) fn
+    // todo : router.mainController(callback) fn
     // todo : add state parameters
     // todo : add child states / abstract state values
     // todo : remove event listeners, after controller destroyed bindings and etc || generate events
@@ -114,6 +115,14 @@
       return this;
     }
 
+    function controller(stateName, controllerRef) {
+      if ($$controllers[stateName]) {
+        new Error("Controller", stateName, "is already defined");
+      }
+      $$controllers[stateName] = controllerRef;
+      return this;
+    }
+
     // manually loading state needs to edit the hash-bang
     function initState(state) {
       fetchTemplate(state)
@@ -132,7 +141,8 @@
               document.title = state.title;
               $$routerView.innerHTML = template;
               window.location.hash = "#" + state.url;
-              state.controller.apply(null, resolved);
+              $$controllers[state.controller].apply(null, resolved);
+              // state.controller.apply(null, resolved);
               $$active = state;
               $$routerView.dispatchEvent(new CustomEvent($$events.stateChangeEnd, {detail: state}));
             });
@@ -180,6 +190,7 @@
 
     return {
       state: state,
+      controller: controller,
       otherwise: otherwise,
       $init: init,
       $state: $$state,
