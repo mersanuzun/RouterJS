@@ -6,50 +6,80 @@
 
   var router = window.Router();
 
-  var home = router.state("home", {
-    url: "/home",
-    templateUrl: "../../controllers/home/home.html",
-    controller: HomeController,
-    before: function() {
-      return 10;
-    }
-  });
+  router
+    .state("home", {
+      title: "Home",
+      url: "/home",
+      templateUrl: "../../controllers/home/home.html",
+      controller: HomeController,
+      resolve: {
+        a: function() {
+          return 10;
+        },
+        b: function() {
+          return new Promise(function(resolve) {
+            setTimeout(function() {
+              resolve(100);
+            },2000)
+          });
+        }
+      }
+    })
+    .state("about", {
+      title: "About",
+      url: "/about",
+      template: '<h3>About</h3>' +
+                '<p> This page contains the data about the owner of this web page. (Template String)</p>',
+      controller: AboutController,
+      resolve: {
+        a: function() {
+          return 20;
+        },
+        b: function() {
+          return new Promise(function(resolve) {
+            setTimeout(function() {
+              resolve(200);
+            },2000)
+          });
+        }
+      }
+    })
+    .state("contact", {
+      title: "Contact",
+      url: "/contact",
+      templateUrl: "../../controllers/contact/contact.html",
+      controller: ContactController,
+      resolve: {
+        a: function() {
+          return 30;
+        },
+        b: function() {
+          return new Promise(function(resolve) {
+            setTimeout(function() {
+              resolve(300);
+            },2000)
+          });
+        }
+      }
+    })
+    .otherwise("home");
 
-  var about = router.state("about", {
-    url: "/about",
-    templateUrl: "../../controllers/about/about.html",
-    controller: AboutController,
-    before: function() {
-      return 20;
-    }
-  });
+  router.$init();
 
-  var contact = router.state("contact", {
-    url: "/contact",
-    templateUrl: "../../controllers/contact/contact.html",
-    controller: ContactController,
-    before: function() {
-      return 30;
-    }
-  });
+  function HomeController(a, b) {
+    console.log("Home controller initiated...");
+    console.log("value of resolve :", a, b);
 
-  function HomeController(before) {
-    this.title = "Home";
-    console.log(this.title, "controller initiated...");
-    console.log("value of before in ", this.title, before);
+    console.log(router.$state);
   }
 
-  function AboutController(before) {
-    this.title = "About";
-    console.log(this.title, "controller initiated...");
-    console.log("value of before in ", this.title, before);
+  function AboutController(a, b) {
+    console.log("About controller initiated...");
+    console.log("value of resolve :", a, b);
   }
 
-  function ContactController(before) {
-    this.title = "Contact";
-    console.log(this.title, "controller initiated...");
-    console.log("value of before in ", this.title, before);
+  function ContactController(a, b) {
+    console.log("Contact controller initiated...");
+    console.log("value of resolve :", a, b);
   }
-
-  router.init();
 })();
