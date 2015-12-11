@@ -44,11 +44,6 @@
     });
   }
 
-  function produceUrl(state) {
-    console.log(state.$scope);
-    return "";
-  }
-
   var $$routerView = document.querySelector("[data-router-view]");
   var $$routes = {};
   var $$active;
@@ -87,8 +82,7 @@
     }
 
     // todo : add state parameters
-    // todo : add child states
-    // todo : add previous state and abstract state values
+    // todo : add child states / abstract state values
     // todo : remove event listeners, after controller destroyed bindings and etc || generate events
     // todo : globalize event listener so that they can be removed
 
@@ -172,6 +166,10 @@
       }
     };
 
+    function getStateList() {
+      return Object.keys($$routes);
+    }
+
     $$routerView.addEventListener("$stateChangeStart", function() {
       console.log("state change started");
     });
@@ -184,7 +182,8 @@
       state: state,
       otherwise: otherwise,
       $init: init,
-      $state: $$state
+      $state: $$state,
+      $stateList: getStateList
     };
   }
 
