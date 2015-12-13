@@ -80,11 +80,14 @@
     .state("user", {
       title: "User",
       parent: "users",
-      url: "/users/:userName",
+      url: "/:userName",
       templateUrl: "../../controllers/users/user.html",
       controller: "UserController"
     })
     .otherwise("home");
+
+  // todo : try with multiple parametrized states
+  // check parent for parametrized states
 
   router.controller("HomeController", function($scope, a, b) {
     console.log("Home controller initiated...");

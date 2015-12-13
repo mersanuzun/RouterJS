@@ -65,7 +65,7 @@
       return "#" + destinationState.url;
     }
     var compiledHash = "";
-    var scopeData = Object.assign({}, $$controllers[$$active.controller].$scope); // todo : may fail - check
+    var scopeData = Object.assign({}, $$controllers[$$active.controller].$scope);
     parameters = JSON.parse(parameters);
 
     for (var parameter in parameters) {
@@ -73,7 +73,7 @@
         parameters[parameter].split(".").forEach(function(p) {
           scopeData = scopeData[p];
         });
-        compiledHash = "#" + destinationState.url.replace(":" + parameter, scopeData);
+        compiledHash = "#" + $$routes[destinationState.parent].url + destinationState.url.replace(":" + parameter, scopeData);
       }
     }
     console.log("generating url with parameters...");
@@ -92,7 +92,7 @@
       }
     }
     console.log("generating hash with parameters...");
-    return "#" + base;
+    return "#" + $$routes[state.parent].url + base;
   }
 
   function generateRoutes(sourceDOM) {
@@ -150,7 +150,6 @@
   }
 
   function resolveState() {
-    // todo : extend for parametrized states
     var tbState = $$otherwise;
     var mayBeStateUrl = window.location.href.split("#")[1];
     console.log("resolving state...", mayBeStateUrl);
@@ -160,8 +159,13 @@
     }
 
     for (var state in $$routes) {
-      if (($$routes[state].url.indexOf(":") > -1) &&
-        $$routes[state].url.split("/").length === mayBeStateUrl.split("/").length) {
+      var _state = $$routes[state];
+      if (_state.parent && $$routes[_state.parent]) {
+        // if there is parent and it is in the routes
+        console.log("state has a valid parent!", _state.parent);
+      }
+      if (_state.hasParams &&
+        ($$routes[_state.parent].url + _state.url).split("/").length === mayBeStateUrl.split("/").length) {
         console.log("route has params");
         tbState = $$routes[state];
         break;
@@ -181,7 +185,7 @@
       console.log("state params :", state.params);
       return;
     }
-    var maskUrl = state.url.split("/").slice(1),
+    var maskUrl = ($$routes[state.parent].url + state.url).split("/").slice(1),
       currentUrl = window.location.href.split("#")[1].split("/").slice(1);
 
     maskUrl.forEach(function(mask) {
@@ -222,8 +226,8 @@
   }
 
   function Router() {
-    // todo : prevent redirect when child state init
     // todo : remove event listeners, after controller destroyed bindings and etc || generate events
+    // todo : generate events
 
     var $state = {
       go: function(name) {
