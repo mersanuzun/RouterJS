@@ -4,12 +4,24 @@
 (function() {
   "use strict";
 
+  var $$routerView = document.querySelector("[data-router-view]");
+  var $$routes = {};
+  var $$controllers = {};
+  var $$active;
+  var $$otherwise;
+
+  var $$events = {
+    stateChangeStart: "$stateChangeStart",
+    stateChangeEnd: "$stateChangeEnd",
+    stateChangeError: "$stateChangeError"
+  };
+
   function uuid() {
     return "$$_" + "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
-      var r = Math.random()*16|0;
-      var v = c == "x" ? r : r&0x3 | 0x8;
-      return v.toString(16);
-    });
+        var r = Math.random()*16|0;
+        var v = c == "x" ? r : r&0x3 | 0x8;
+        return v.toString(16);
+      });
   }
 
   function fetch(url) {
@@ -32,6 +44,7 @@
   }
 
   function fetchTemplate(state) {
+    console.log("fetching template...");
     return new Promise(function(resolve) {
       if (state.template) {
         resolve(state.template);
@@ -44,120 +57,175 @@
     });
   }
 
-  var $$routerView = document.querySelector("[data-router-view]");
-  var $$routes = {};
-  var $$controllers = {};
-  var $$active;
-  var $$otherwise;
+  function generateUrl(stateName, parameters) {
+    var destinationState = $$routes[stateName];
 
-  var $$events = {
-    stateChangeStart: "$stateChangeStart",
-    stateChangeEnd: "$stateChangeEnd",
-    stateChangeError: "$stateChangeError"
-  };
-
-  function Router() {
-
-    function extractRoutesWithParameters() {
-      var routeTriggers = document.querySelectorAll("[data-route]");
-      Array.prototype.slice.call(routeTriggers, 0).forEach(function(rTrigger) {
-        var routeRef = rTrigger.getAttribute("data-route");
-        var routeParams = rTrigger.getAttribute("data-params");
-
-        rTrigger.setAttribute("href", "#" + $$routes[routeRef].url);
-      });
+    if (parameters === null) {
+      console.log("generating url without parameters...");
+      return "#" + destinationState.url;
     }
+    var compiledHash = "";
+    var scopeData = Object.assign({}, $$controllers[$$active.controller].$scope); // todo : may fail - check
+    parameters = JSON.parse(parameters);
 
-    function resolveState() {
-      var mayBeStateUrl = window.location.href.split("#")[1];
-      var tbState = $$otherwise;
-      var routeNames = Object.keys($$routes);
-
-      for (var i = 0; i < routeNames.length; i++) {
-        if ($$routes[routeNames[i]].url === mayBeStateUrl) {
-          tbState = $$routes[routeNames[i]];
-          break;
-        }
+    for (var parameter in parameters) {
+      if (parameters.hasOwnProperty(parameter)) {
+        parameters[parameter].split(".").forEach(function(p) {
+          scopeData = scopeData[p];
+        });
+        compiledHash = "#" + destinationState.url.replace(":" + parameter, scopeData);
       }
+    }
+    console.log("generating url with parameters...");
+    return compiledHash;
+  }
+
+  function generateHash(state) {
+    if (!state.params || Object.keys(state.params).length === 0) {
+      console.log("generating hash without parameters...");
+      return "#" + state.url;
+    }
+    var base = "";
+    for (var param in state.params) {
+      if (state.params.hasOwnProperty(param)) {
+        base = state.url.replace(":" + param, state.params[param]);
+      }
+    }
+    console.log("generating hash with parameters...");
+    return "#" + base;
+  }
+
+  function generateRoutes(sourceDOM) {
+    console.log("generating routes");
+    Array.prototype.slice.call(sourceDOM.querySelectorAll("[data-route]"), 0)
+      .forEach(function(route) {
+        route.setAttribute("href", generateUrl(route.getAttribute("data-route"), route.getAttribute("data-params")));
+      });
+  }
+
+  function generateScope() {
+    var newScope = { $$id: uuid()};
+    Object.observe(newScope, function(changedScope) {
+      // todo : add what is necessary
+    });
+    console.log("generating scope...", newScope);
+    return newScope;
+  }
+
+  function destroyScope() {
+    // delete from controllers scope
+  }
+
+  function resolveController(controllerName, resolvers) {
+    var ctrl = $$controllers[controllerName];
+    return new Promise(function(resolveFn, rejectFn) {
+      if (!resolvers) {
+        resolveFn({controller: ctrl.$controller, params: [ctrl.$scope]});
+      } else {
+        var promises = Object.keys(resolvers).map(function(tbResolved) {
+          return new Promise(function(resolve) {
+            resolve(resolvers[tbResolved].apply(null, []));
+          });
+        });
+
+        Promise.all(promises)
+          .then(function(resolved) {
+            resolveFn({controller: ctrl.$controller, params: [ctrl.$scope].concat(resolved)});
+          })
+          .catch(function(error) {
+            console.log("resolve error occurred :", error);
+            rejectFn(error);
+          });
+      }
+    });
+  }
+
+  function attachController(controllerData) {
+    console.log("setting up controller...");
+    controllerData.controller.apply(null, controllerData.params);
+  }
+
+  function detachController(controller) {
+    // stop controller activity inside controller fn
+  }
+
+  function resolveState() {
+    // todo : extend for parametrized states
+    var tbState = $$otherwise;
+    var mayBeStateUrl = window.location.href.split("#")[1];
+    console.log("resolving state...", mayBeStateUrl);
+
+    if (!mayBeStateUrl) {
       return tbState;
     }
 
-    // todo : router.mainController(callback) fn
-    // todo : add state parameters
-    // todo : add child states / abstract state values
+    for (var state in $$routes) {
+      if (($$routes[state].url.indexOf(":") > -1) &&
+        $$routes[state].url.split("/").length === mayBeStateUrl.split("/").length) {
+        console.log("route has params");
+        tbState = $$routes[state];
+        break;
+      } else if ($$routes[state].url === mayBeStateUrl) {
+        tbState = $$routes[state];
+        break;
+      }
+    }
+    return tbState;
+  }
+
+  function setUpStateParams(state) {
+    console.log("setting up state parameters...", state.name);
+    state.params = {};
+
+    if (state.url.indexOf(":") === -1) {
+      console.log("state params :", state.params);
+      return;
+    }
+    var maskUrl = state.url.split("/").slice(1),
+      currentUrl = window.location.href.split("#")[1].split("/").slice(1);
+
+    maskUrl.forEach(function(mask) {
+      var index = maskUrl.indexOf(mask);
+      if (mask.indexOf(":") === 0) {
+        var param = mask.replace(":", "");
+        state.params[param] = currentUrl[index];
+      }
+    });
+    console.log("state params :", state.params);
+  }
+
+  function initState(state) {
+    console.log("initiating state...", state);
+    Promise.all([fetchTemplate(state), resolveController(state.controller, state.resolve)])
+      .then(function(resolved) {
+        var template = resolved[0];
+        var controllerData = resolved[1];
+
+        console.log("setting state title...", state.title);
+        document.title = state.title;
+        console.log("setting up view...");
+        $$routerView.innerHTML = template;
+        setUpStateParams(state);
+        console.log("setting up active state...", state);
+        $$active = state;
+        attachController(controllerData);
+        window.location.hash = generateHash(state);
+        generateRoutes($$routerView);
+      })
+      .catch(function(error) {
+        console.log("Initiating state", state, "failed due to error", error)
+      });
+  }
+
+  function destroyState(state) {
+    // delete event listeners
+  }
+
+  function Router() {
+    // todo : prevent redirect when child state init
     // todo : remove event listeners, after controller destroyed bindings and etc || generate events
-    // todo : globalize event listener so that they can be removed
 
-    window.addEventListener("hashchange", function() {
-      var state = resolveState();
-      state = state ? state : $$otherwise;
-      if (state !== $$active) {
-        $$routerView.dispatchEvent(new CustomEvent($$events.stateChangeStart, {detail: state}));
-      } else {
-        window.location.hash = "#" + state.url;
-      }
-    });
-
-    $$routerView.addEventListener($$events.stateChangeStart, function(event) {
-      initState(event.detail);
-    });
-
-    function state(name, options) {
-      if ($$routes[name]) {
-        new Error("State", name, "is already in your route list");
-      }
-      $$routes[name] = Object.assign({id: uuid(), name: name}, options);
-      return this;
-    }
-
-    function otherwise(stateName) {
-      $$otherwise = $$routes[stateName];
-      return this;
-    }
-
-    function controller(stateName, controllerRef) {
-      if ($$controllers[stateName]) {
-        new Error("Controller", stateName, "is already defined");
-      }
-      $$controllers[stateName] = controllerRef;
-      return this;
-    }
-
-    // manually loading state needs to edit the hash-bang
-    function initState(state) {
-      fetchTemplate(state)
-        .then(function(template) {
-          if (!state.resolve) {
-            return;
-          }
-          var promises = Object.keys(state.resolve).map(function(tbResolved) {
-            return new Promise(function(resolve, reject) {
-              resolve(state.resolve[tbResolved].apply(null, []));
-            });
-          });
-
-          Promise.all(promises)
-            .then(function(resolved) {
-              document.title = state.title;
-              $$routerView.innerHTML = template;
-              window.location.hash = "#" + state.url;
-              $$controllers[state.controller].apply(null, resolved);
-              // state.controller.apply(null, resolved);
-              $$active = state;
-              $$routerView.dispatchEvent(new CustomEvent($$events.stateChangeEnd, {detail: state}));
-            });
-        });
-    }
-
-    function destoryState(state) {}
-
-    function init() {
-      extractRoutesWithParameters();
-      // trigger hash-change on page load so that resolve the otherwise state in case of wrong url
-      window.dispatchEvent(new Event("hashchange"));
-    }
-
-    var $$state = {
+    var $state = {
       go: function(name) {
         // fire stateChange start event
         initState($$routes[name]);
@@ -166,7 +234,8 @@
         window.location.reload();
       },
       params: function() {
-        return 0; // todo : implement
+        // resolve state params
+        return $$active.params;
       },
       isActive: function(name) {
         return $$active === $$routes[name];
@@ -176,27 +245,60 @@
       }
     };
 
-    function getStateList() {
+    function $stateList() {
       return Object.keys($$routes);
     }
 
-    $$routerView.addEventListener("$stateChangeStart", function() {
-      console.log("state change started");
-    });
+    function state(name, options) {
+      if ($$routes[name]) {
+        new Error("state", name, "is already defined");
+      }
+      var hasParams = options.url.indexOf(":") > -1;
+      $$routes[name] = Object.assign({name: name, hasParams: hasParams}, options);
+      return this;
+    }
 
-    $$routerView.addEventListener("$stateChangeEnd", function(e) {
-      console.log("state change end");
+    function otherwise(statename) {
+      $$otherwise = $$routes[statename];
+      return this;
+    }
+
+    function controller(controllerName, controllerRef) {
+      console.log("generating controller", controllerName);
+      if ($$controllers[controllerName]) {
+        new Error("duplicate controller", controllerName);
+      }
+      $$controllers[controllerName] = {$controller: controllerRef, $scope: generateScope()};
+      return this;
+    }
+
+    function init() {
+      generateRoutes(document);
+      var stateToGo = resolveState();
+      console.log("going to state", stateToGo);
+      initState(stateToGo);
+    }
+
+    window.addEventListener("hashchange", function(e) {
+      var stateToGo = resolveState();
+      if (stateToGo.name !== $$active.name || stateToGo.hasParams) {
+        initState(stateToGo);
+      } else {
+        console.log("already in the same state");
+        window.location.hash = generateHash(stateToGo);
+      }
     });
 
     return {
       state: state,
       controller: controller,
       otherwise: otherwise,
-      $init: init,
-      $state: $$state,
-      $stateList: getStateList
+      init: init,
+      $state: $state,
+      $stateList: $stateList,
+      $view: $$routerView
     };
   }
-
-  window.Router = Router;
+  // publish router
+  window.Router = window.Router || Router;
 })();

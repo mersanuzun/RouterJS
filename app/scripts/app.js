@@ -68,50 +68,60 @@
       templateUrl: "../../controllers/users/users.html",
       controller: "UsersController",
       resolve: {
-        users: function() {
-          return [
-            {user1: {name: "John", surname: "Doe", age: 25}},
-            {user2: {name: "Sally", surname: "Sure", age: 18}},
-            {user3: {name: "Matt", surname: "Damon", age: 35}}
-          ]
+        users: function () {
+          return {
+              user1: {name: "John", surname: "Doe", age: 25},
+              user2: {name: "Sally", surname: "Sure", age: 18},
+              user3: {name: "Matt", surname: "Damon", age: 35}
+          };
         }
       }
     })
     .state("user", {
       title: "User",
       parent: "users",
-      url: "/:userName",
+      url: "/users/:userName",
       templateUrl: "../../controllers/users/user.html",
       controller: "UserController"
     })
     .otherwise("home");
 
-  router.controller("HomeController", function(a, b) {
+  router.controller("HomeController", function($scope, a, b) {
     console.log("Home controller initiated...");
+    // console.log("Scope of Home controller :", $scope);
     console.log("value of resolve :", a, b);
 
-    console.log(router.$state);
+    // console.log(router.$state);
   });
 
-  router.controller("AboutController", function(a, b) {
+  router.controller("AboutController", function($scope, a, b) {
     console.log("About controller initiated...");
+    // console.log("Scope of About controller :", $scope);
     console.log("value of resolve :", a, b);
   });
 
-   router.controller("ContactController", function(a, b) {
-    console.log("Contact controller initiated...");
-    console.log("value of resolve :", a, b);
+   router.controller("ContactController", function($scope, a, b) {
+     console.log("Contact controller initiated...");
+     // console.log("Scope of Contact controller :", $scope);
+     console.log("value of resolve :", a, b);
   });
 
-  router.controller("UsersController", function(users) {
-    console.log("User controller initiated");
-    console.log("users array", users);
+  router.controller("UsersController", function($scope, users) {
+    console.log("Users controller initiated");
+    $scope.users = users;
+    // console.log("users object", $scope.users);
+    // console.log("Scope of Users controller :", $scope);
   });
 
-  router.controller("UserController", function() {
+  router.controller("UserController", function($scope) {
     console.log("User controller initiated...");
+    var stateParams = router.$state.params();
+    $scope.userName = stateParams.userName;
+    console.log("Scope of User controller :", $scope);
+    document.getElementById("userName").innerHTML = "Welcome " + stateParams.userName;
+    document.getElementById("personalData").innerHTML = "We are glad to see you " + stateParams.userName;
   });
 
-  router.$init();
+  router.init();
 
 })();
