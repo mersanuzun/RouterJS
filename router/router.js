@@ -150,30 +150,39 @@
   }
 
   function resolveState() {
+    console.log("resolving state...");
     var tbState = $$otherwise;
     var mayBeStateUrl = window.location.href.split("#")[1];
-    console.log("resolving state...", mayBeStateUrl);
 
     if (!mayBeStateUrl) {
+      console.log("RESOLVED STATE ::::", tbState);
       return tbState;
     }
 
+    var URLArray = mayBeStateUrl.split("/").slice(1);
+
     for (var state in $$routes) {
       var _state = $$routes[state];
-      if (_state.parent && $$routes[_state.parent]) {
-        // if there is parent and it is in the routes
-        console.log("state has a valid parent!", _state.parent);
+
+      var isValid = false;
+      var pathArray = _state.fullPath.split("/").slice(1);
+
+      if (pathArray.length === URLArray.length) {
+        for (var i = 0; i < pathArray.length; i++) {
+          if (pathArray[i].indexOf(":") === -1) { // not param
+            isValid = (pathArray[i] == URLArray[i]);
+          } else {
+            isValid = (URLArray[i] !== "" && URLArray[i] !== null); // todo : convert to regex : alpha-numeric
+          }
+          if (!isValid) { break; }
+        }
       }
-      if (_state.hasParams &&
-        ($$routes[_state.parent].url + _state.url).split("/").length === mayBeStateUrl.split("/").length) {
-        console.log("route has params");
-        tbState = $$routes[state];
-        break;
-      } else if ($$routes[state].url === mayBeStateUrl) {
-        tbState = $$routes[state];
+      if (isValid) {
+        tbState = _state;
         break;
       }
     }
+    console.log("RESOLVED STATE ::::", tbState);
     return tbState;
   }
 
@@ -225,6 +234,13 @@
     // delete event listeners
   }
 
+  function generateFullStatePath(state) {
+    if (!state.parent) {
+      return state.url;
+    }
+    return generateFullStatePath($$routes[state.parent]) + state.url;
+  }
+
   function Router() {
     // todo : remove event listeners, after controller destroyed bindings and etc || generate events
     // todo : generate events
@@ -257,7 +273,11 @@
       if ($$routes[name]) {
         new Error("state", name, "is already defined");
       }
-      var hasParams = options.url.indexOf(":") > -1;
+      if (!$$routes[options.parent]) {
+        new Error("parent state", options.parent, "is not defined");
+      }
+
+      var hasParams = options.url.indexOf(":") > -1; // todo : may be removed
       $$routes[name] = Object.assign({name: name, hasParams: hasParams}, options);
       return this;
     }
@@ -277,6 +297,11 @@
     }
 
     function init() {
+      Object.keys($$routes).forEach(function(state) {
+        $$routes[state].fullPath = generateFullStatePath($$routes[state]);
+      });
+      console.log("STATES WITH FULL URL :::::", $$routes);
+
       generateRoutes(document);
       var stateToGo = resolveState();
       console.log("going to state", stateToGo);
