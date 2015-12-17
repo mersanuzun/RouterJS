@@ -10,6 +10,38 @@
   var $$active;
   var $$otherwise;
 
+  var $$events = {
+    eventList: {
+      $stateChangeStart: [],
+      $stateChangeEnd: [],
+      $stateChangeError: [],
+      $stateDestroy: []
+    },
+    dispatch: function(eventName, data) {
+      var event = this.eventList[eventName];
+      if (!event) { new Error("There is no such event.."); }
+      event.forEach(function(eHandler) {
+        eHandler.apply(null, [data]);
+      });
+    },
+    on: function(eventName, eventHandler) { // this is the register function
+      if (typeof eventHandler != "function") {
+        new Error(eventHandler, "is not a function");
+      }
+      var event = this.eventList[eventName];
+      event.push(eventHandler);
+    },
+    off: function(eventName, eventHandler) {
+      var event = this.eventList[eventName];
+      event.forEach(function(eHandler) {
+        if (eHandler == eventHandler) {
+
+          event.splice(event.indexOf(eHandler), 1);
+        }
+      });
+    }
+  };
+
   function uuid() {
     return "$$_" + "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
         var r = Math.random()*16|0;
@@ -51,11 +83,11 @@
     });
   }
 
+  // todo : remove this :: no scope will be provided anymore
   function generateUrl(stateName, parameters) {
     var destinationState = $$routes[stateName];
 
     if (parameters === null) {
-      console.log("generating url without parameters...");
       return "#" + destinationState.url;
     }
     var compiledHash = "";
@@ -70,13 +102,11 @@
         compiledHash = "#" + $$routes[destinationState.parent].url + destinationState.url.replace(":" + parameter, scopeData);
       }
     }
-    console.log("generating url with parameters...");
     return compiledHash;
   }
 
   function generateHash(state) {
     if (!state.params || Object.keys(state.params).length === 0) {
-      console.log("generating hash without parameters...");
       return "#" + state.url;
     }
     var base = "";
@@ -85,24 +115,21 @@
         base = state.url.replace(":" + param, state.params[param]);
       }
     }
-    console.log("generating hash with parameters...");
     return "#" + $$routes[state.parent].url + base;
   }
 
   function generateRoutes(sourceDOM) {
-    console.log("generating routes");
     Array.prototype.slice.call(sourceDOM.querySelectorAll("[data-route]"), 0)
       .forEach(function(route) {
         route.setAttribute("href", generateUrl(route.getAttribute("data-route"), route.getAttribute("data-params")));
       });
   }
 
+  // todo : remove
   function generateScope() {
     var newScope = { $$id: uuid()};
     Object.observe(newScope, function(changedScope) {
-      // todo : add what is necessary
     });
-    console.log("generating scope...", newScope);
     return newScope;
   }
 
@@ -135,7 +162,6 @@
   }
 
   function attachController(controllerData) {
-    console.log("setting up controller...");
     controllerData.controller.apply(null, controllerData.params);
   }
 
@@ -144,36 +170,31 @@
   }
 
   function resolveState() {
-    console.log("resolving state...");
     var tbState = $$otherwise;
     var mayBeStateUrl = window.location.href.split("#")[1];
 
-    if (!mayBeStateUrl) {
-      console.log("RESOLVED STATE ::::", tbState);
-      return tbState;
-    }
+    if (mayBeStateUrl) {
+      var URLArray = mayBeStateUrl.split("/").slice(1);
 
-    var URLArray = mayBeStateUrl.split("/").slice(1);
+      for (var state in $$routes) {
+        var _state = $$routes[state];
+        var isValid = false;
+        var pathArray = _state.fullPath.split("/").slice(1);
 
-    for (var state in $$routes) {
-      var _state = $$routes[state];
-
-      var isValid = false;
-      var pathArray = _state.fullPath.split("/").slice(1);
-
-      if (pathArray.length === URLArray.length) {
-        for (var i = 0; i < pathArray.length; i++) {
-          if (pathArray[i].indexOf(":") === -1) { // not param
-            isValid = (pathArray[i] == URLArray[i]);
-          } else {
-            isValid = (URLArray[i] !== "" && URLArray[i] !== null); // todo : convert to regex : alpha-numeric
+        if (pathArray.length === URLArray.length) {
+          for (var i = 0; i < pathArray.length; i++) {
+            if (pathArray[i].match(/(:[\w\d]*)/g) === null) {
+              isValid = (pathArray[i] == URLArray[i]);
+            } else {
+              isValid = URLArray[i] && URLArray[i].match(/([\w\d]{1,})/g);
+            }
+            if (!isValid) { break; }
           }
-          if (!isValid) { break; }
         }
-      }
-      if (isValid) {
-        tbState = _state;
-        break;
+        if (isValid) {
+          tbState = _state;
+          break;
+        }
       }
     }
     console.log("RESOLVED STATE ::::", tbState);
@@ -181,46 +202,49 @@
   }
 
   function setUpStateParams(state) {
-    console.log("setting up state parameters...", state.name);
-    state.params = {};
+    var stateParams = {};
+    var params = state.url.match(/(\/:[\w\d]*)/g);
 
-    if (state.url.indexOf(":") === -1) {
-      console.log("state params :", state.params);
-      return;
+    if (params === null) {
+      return stateParams;
     }
-    var maskUrl = ($$routes[state.parent].url + state.url).split("/").slice(1),
-      currentUrl = window.location.href.split("#")[1].split("/").slice(1);
+    var maskUrl = state.fullPath.match(/(\/[:{0,1}\w\d]*)/g);
+    var currentUrl = window.location.hash.slice(1).match(/(\/[:{0,1}\w\d]*)/g);
 
-    maskUrl.forEach(function(mask) {
-      var index = maskUrl.indexOf(mask);
-      if (mask.indexOf(":") === 0) {
-        var param = mask.replace(":", "");
-        state.params[param] = currentUrl[index];
-      }
+    params.forEach(function(param) {
+      var i = maskUrl.indexOf(param);
+      stateParams[param.slice(2)] = currentUrl[i].slice(1);
     });
-    console.log("state params :", state.params);
+    return stateParams;
   }
 
   function initState(state) {
-    console.log("initiating state...", state);
+    if ($$active && state.name === $$active.name) {
+      console.log("ALREADY IN THE SAME STATE...");
+      window.location.hash = generateHash(state);
+      return;
+    }
+    $$events.dispatch("$stateChangeStart", {from: ($$active ? $$active.name : undefined), to: state.name});
+    $$events.dispatch("$stateDestroy");
+
     Promise.all([fetchTemplate(state), resolveController(state.controller, state.resolve)])
       .then(function(resolved) {
         var template = resolved[0];
         var controllerData = resolved[1];
 
-        console.log("setting state title...", state.title);
         document.title = state.title;
-        console.log("setting up view...");
         $$routerView.innerHTML = template;
-        setUpStateParams(state);
-        console.log("setting up active state...", state);
+        state.params = setUpStateParams(state);
         $$active = state;
         attachController(controllerData);
         window.location.hash = generateHash(state);
         generateRoutes($$routerView);
+
+        $$events.dispatch("$stateChangeEnd", {to: state.name});
       })
       .catch(function(error) {
-        console.log("Initiating state", state, "failed due to error", error)
+        $$events.dispatch("$stateChangeError", {to: state.name});
+        new Error("Initiating state", state, "failed due to error", error);
       });
   }
 
@@ -236,39 +260,7 @@
   }
 
   function Router() {
-    // todo : remove event listeners, after controller destroyed bindings and etc || generate events
-    // todo : open parent params / data
-    // remove scope
-
-    var _router = {
-      events: {
-        $stateChangeStart: [],
-        $stateChangeEnd: [],
-        $stateChangeError: []
-      },
-      dispatch: function(eventName, data) {
-        var event = this.events[eventName];
-        if (!event) { new Error("There is no such event.."); }
-        event.forEach(function(eHandler) {
-          eHandler.call(null, data);
-        });
-      },
-      on: function(eventName, eventHandler) { // this is the register function
-        if (typeof eventHandler != "function") {
-          new Error(eventHandler, "is not a function");
-        }
-        var event = this.events[eventName];
-        event.push(eventHandler);
-      },
-      off: function(eventName, eventHandler) {
-        var event = this.events[eventName];
-        event.forEach(function(eHandler) {
-          if (eHandler == eventHandler) {
-           event.splice(event.indexOf(eHandler), 1);
-          }
-        });
-      }
-    };
+    // todo : remove scope
 
     var $state = {
       go: function(name) {
@@ -290,7 +282,7 @@
       }
     };
 
-    function $stateList() {
+    function $stateNames() {
       return Object.keys($$routes);
     }
 
@@ -302,8 +294,7 @@
         new Error("parent state", options.parent, "is not defined");
       }
 
-      var hasParams = options.url.indexOf(":") > -1; // todo : may be removed
-      $$routes[name] = Object.assign({name: name, hasParams: hasParams}, options);
+      $$routes[name] = Object.assign({name: name}, options);
       return this;
     }
 
@@ -313,7 +304,6 @@
     }
 
     function controller(controllerName, controllerRef) {
-      console.log("generating controller", controllerName);
       if ($$controllers[controllerName]) {
         new Error("duplicate controller", controllerName);
       }
@@ -325,22 +315,14 @@
       Object.keys($$routes).forEach(function(state) {
         $$routes[state].fullPath = generateFullStatePath($$routes[state]);
       });
-      console.log("STATES WITH FULL URL :::::", $$routes);
 
       generateRoutes(document);
-      var stateToGo = resolveState();
-      console.log("going to state", stateToGo);
-      initState(stateToGo);
+      initState(resolveState());
     }
 
-    window.addEventListener("hashchange", function(e) {
-      var stateToGo = resolveState();
-      if (stateToGo.name !== $$active.name || stateToGo.hasParams) {
-        initState(stateToGo);
-      } else {
-        console.log("already in the same state");
-        window.location.hash = generateHash(stateToGo);
-      }
+    window.addEventListener("hashchange", function() {
+      console.log("HASH CHANGE ::::::::");
+      initState(resolveState());
     });
 
     return {
@@ -349,8 +331,13 @@
       otherwise: otherwise,
       init: init,
       $state: $state,
-      $stateList: $stateList,
-      $view: $$routerView
+      $stateNames: $stateNames,
+      $on: function(eventName, eventHandler) {
+        return $$events.on(eventName, eventHandler);
+      },
+      $off: function(eventName, eventHandler) {
+        return $$events.off(eventName, eventHandler);
+      }
     };
   }
   // publish router

@@ -93,7 +93,6 @@
     console.log("Home controller initiated...");
     // console.log("Scope of Home controller :", $scope);
     console.log("value of resolve :", a, b);
-
     // console.log(router.$state);
   });
 
@@ -125,6 +124,17 @@
     document.getElementById("personalData").innerHTML = "We are glad to see you " + stateParams.userName;
   });
 
+  router.$on("$stateChangeStart", stateChangeStartHandler);
+  router.$on("$stateChangeEnd", stateChangeEndHandler);
+
   router.init();
+
+  function stateChangeStartHandler(eventData) {
+    console.log("STATE CHANGE STARTED FROM :", eventData.from, "TO :", eventData.to);
+  }
+
+  function stateChangeEndHandler(eventData) {
+    console.log("STATE CHANGE TO :", eventData.to, "COMPLETED");
+  }
 
 })();
