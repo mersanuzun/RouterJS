@@ -10,12 +10,6 @@
   var $$active;
   var $$otherwise;
 
-  var $$events = {
-    stateChangeStart: "$stateChangeStart",
-    stateChangeEnd: "$stateChangeEnd",
-    stateChangeError: "$stateChangeError"
-  };
-
   function uuid() {
     return "$$_" + "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
         var r = Math.random()*16|0;
@@ -243,7 +237,38 @@
 
   function Router() {
     // todo : remove event listeners, after controller destroyed bindings and etc || generate events
-    // todo : generate events
+    // todo : open parent params / data
+    // remove scope
+
+    var _router = {
+      events: {
+        $stateChangeStart: [],
+        $stateChangeEnd: [],
+        $stateChangeError: []
+      },
+      dispatch: function(eventName, data) {
+        var event = this.events[eventName];
+        if (!event) { new Error("There is no such event.."); }
+        event.forEach(function(eHandler) {
+          eHandler.call(null, data);
+        });
+      },
+      on: function(eventName, eventHandler) { // this is the register function
+        if (typeof eventHandler != "function") {
+          new Error(eventHandler, "is not a function");
+        }
+        var event = this.events[eventName];
+        event.push(eventHandler);
+      },
+      off: function(eventName, eventHandler) {
+        var event = this.events[eventName];
+        event.forEach(function(eHandler) {
+          if (eHandler == eventHandler) {
+           event.splice(event.indexOf(eHandler), 1);
+          }
+        });
+      }
+    };
 
     var $state = {
       go: function(name) {
