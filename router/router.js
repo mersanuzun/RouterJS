@@ -83,7 +83,6 @@
     });
   }
 
-  // todo : remove this :: no scope will be provided anymore
   function generateUrl(stateName, parameters) {
     var destinationState = $$routes[stateName];
 
@@ -125,7 +124,6 @@
       });
   }
 
-  // todo : remove
   function generateScope() {
     var newScope = { $$id: uuid()};
     Object.observe(newScope, function(changedScope) {
@@ -133,14 +131,22 @@
     return newScope;
   }
 
-  function destroyScope() {
-    // delete from controllers scope
+  function destroyCurrentScope() {
+    if ($$active) {
+      var controller = $$controllers[$$active.controller];
+      console.log("SCOPE TO BE DESTROYED", controller.$scope);
+      controller.$scope = null;
+      delete controller.$scope;
+    } else {
+      console.log("THERE IS NO SCOPE TO BE DESTROYED");
+    }
   }
 
   function resolveController(controllerName, resolvers) {
     var ctrl = $$controllers[controllerName];
     return new Promise(function(resolveFn, rejectFn) {
       if (!resolvers) {
+        ctrl.$scope = generateScope();
         resolveFn({controller: ctrl.$controller, params: [ctrl.$scope]});
       } else {
         var promises = Object.keys(resolvers).map(function(tbResolved) {
@@ -151,6 +157,7 @@
 
         Promise.all(promises)
           .then(function(resolved) {
+            ctrl.$scope = generateScope();
             resolveFn({controller: ctrl.$controller, params: [ctrl.$scope].concat(resolved)});
           })
           .catch(function(error) {
@@ -163,10 +170,6 @@
 
   function attachController(controllerData) {
     controllerData.controller.apply(null, controllerData.params);
-  }
-
-  function detachController(controller) {
-    // stop controller activity inside controller fn
   }
 
   function resolveState() {
@@ -225,7 +228,7 @@
       return;
     }
     $$events.dispatch("$stateChangeStart", {from: ($$active ? $$active.name : undefined), to: state.name});
-    $$events.dispatch("$stateDestroy");
+    $$events.dispatch("$stateDestroy"); // todo : add handler of it
 
     Promise.all([fetchTemplate(state), resolveController(state.controller, state.resolve)])
       .then(function(resolved) {
@@ -235,6 +238,12 @@
         document.title = state.title;
         $$routerView.innerHTML = template;
         state.params = setUpStateParams(state);
+
+        destroyCurrentScope();
+
+        console.log("$$ROUTES ::::", $$routes);
+        console.log("$$CONTROLLERS ::::", $$controllers);
+
         $$active = state;
         attachController(controllerData);
         window.location.hash = generateHash(state);
@@ -248,10 +257,6 @@
       });
   }
 
-  function destroyState(state) {
-    // delete event listeners
-  }
-
   function generateFullStatePath(state) {
     if (!state.parent) {
       return state.url;
@@ -260,7 +265,6 @@
   }
 
   function Router() {
-    // todo : remove scope
 
     var $state = {
       go: function(name) {
@@ -307,7 +311,7 @@
       if ($$controllers[controllerName]) {
         new Error("duplicate controller", controllerName);
       }
-      $$controllers[controllerName] = {$controller: controllerRef, $scope: generateScope()};
+      $$controllers[controllerName] = {$controller: controllerRef};
       return this;
     }
 
