@@ -14,8 +14,7 @@
     eventList: {
       $stateChangeStart: [],
       $stateChangeEnd: [],
-      $stateChangeError: [],
-      $stateDestroy: []
+      $stateChangeError: []
     },
     dispatch: function(eventName, data) {
       var event = this.eventList[eventName];
@@ -125,10 +124,10 @@
   }
 
   function generateScope() {
-    var newScope = { $$id: uuid()};
-    Object.observe(newScope, function(changedScope) {
-    });
-    return newScope;
+    // Object.observe(newScope, function(changedScope) {
+      // todo : do we need to watch scope ?
+    // });
+    return {$$id: uuid()};
   }
 
   function destroyCurrentScope() {
@@ -228,7 +227,6 @@
       return;
     }
     $$events.dispatch("$stateChangeStart", {from: ($$active ? $$active.name : undefined), to: state.name});
-    $$events.dispatch("$stateDestroy"); // todo : add handler of it
 
     Promise.all([fetchTemplate(state), resolveController(state.controller, state.resolve)])
       .then(function(resolved) {
@@ -239,7 +237,7 @@
         $$routerView.innerHTML = template;
         state.params = setUpStateParams(state);
 
-        destroyCurrentScope();
+        destroyCurrentScope(); // move it up
 
         console.log("$$ROUTES ::::", $$routes);
         console.log("$$CONTROLLERS ::::", $$controllers);
@@ -336,11 +334,11 @@
       init: init,
       $state: $state,
       $stateNames: $stateNames,
-      $on: function(eventName, eventHandler) {
-        return $$events.on(eventName, eventHandler);
+      on: function(eventName, eventHandler) {
+        $$events.on(eventName, eventHandler);
       },
-      $off: function(eventName, eventHandler) {
-        return $$events.off(eventName, eventHandler);
+      off: function(eventName, eventHandler) {
+        $$events.off(eventName, eventHandler);
       }
     };
   }

@@ -122,10 +122,14 @@
     console.log("Scope of User controller :", $scope);
     document.getElementById("userName").innerHTML = "Welcome " + stateParams.userName;
     document.getElementById("personalData").innerHTML = "We are glad to see you " + stateParams.userName;
+
+    //$scope.on("$destroy", function(data) {
+    //  console.log("SCOPE WILL BE DESTROYED.... YOU SHOULD REMOVE LISTENERS!", data);
+    //});
   });
 
-  router.$on("$stateChangeStart", stateChangeStartHandler);
-  router.$on("$stateChangeEnd", stateChangeEndHandler);
+  router.on("$stateChangeStart", stateChangeStartHandler);
+  router.on("$stateChangeEnd", stateChangeEndHandler);
 
   router.init();
 
