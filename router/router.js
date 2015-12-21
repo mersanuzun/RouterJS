@@ -136,10 +136,6 @@
       });
     }
 
-    function attachController(controllerData) {
-      controllerData.controller.apply(null, controllerData.params);
-    }
-
     function resolveState() {
       console.time("resolve-state");
       var tbState = $$otherwise;
