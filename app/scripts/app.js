@@ -167,7 +167,6 @@
 
   router.controller("HomeController", function(a, b) {
     console.log("Home controller initiated...");
-    // console.log("Scope of Home controller :", $scope);
     console.log("value of resolve :", a, b);
 
     var btn = document.getElementById("goToElena");
@@ -178,13 +177,11 @@
 
   router.controller("AboutController", function(a, b) {
     console.log("About controller initiated...");
-    // console.log("Scope of About controller :", $scope);
     console.log("value of resolve :", a, b);
   });
 
   router.controller("ContactController", function(a, b) {
      console.log("Contact controller initiated...");
-     // console.log("Scope of Contact controller :", $scope);
      console.log("value of resolve :", a, b);
   });
 
@@ -192,20 +189,23 @@
     console.log("Users controller initiated");
     var _users = JSON.parse(users);
 
-    var ul = document.createElement("ul");
-    _users.forEach(function(user) {
-      var li = document.createElement("li");
-      var a = document.createElement("a");
-      li.appendChild(a);
-      a.setAttribute("data-route", "user");
-      a.setAttribute("data-params", JSON.stringify({userId: user.id}));
-      a.innerHTML = user.name;
+    setTimeout(function() {
+      var ul = document.createElement("ul");
+      _users.forEach(function(user) {
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        li.appendChild(a);
+        a.setAttribute("data-route", "user");
+        a.setAttribute("data-params", JSON.stringify({userId: user.id}));
+        a.innerHTML = user.name;
 
-      ul.appendChild(li);
-    });
+        ul.appendChild(li);
+      });
 
-    var userList = document.getElementById("userList");
-    userList.appendChild(ul);
+      var userList = document.getElementById("userList");
+      userList.appendChild(ul);
+      router.$generateRoutes();
+    }, 3000);
   });
 
   router.controller("UserController", function(userDetails) {
